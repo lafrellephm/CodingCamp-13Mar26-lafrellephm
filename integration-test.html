@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Integration Test - Productivity Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      background: #f5f5f5;
+    }
+    .test-container {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .test-result {
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .pass { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .fail { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    button {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+    }
+    button:hover { background: #0056b3; }
+    #dashboard-frame {
+      width: 100%;
+      height: 600px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Productivity Dashboard - Integration Test</h1>
+  
+  <div class="test-container">
+    <h2>Integration Test Controls</h2>
+    <button onclick="runAllTests()">Run All Integration Tests</button>
+    <button onclick="clearStorage()">Clear Storage</button>
+    <button onclick="loadDashboard()">Load Dashboard</button>
+    <div id="test-results"></div>
+  </div>
+
+  <div class="test-container">
+    <h2>Dashboard Preview</h2>
+    <iframe id="dashboard-frame" src="index.html"></iframe>
+  </div>
+
+  <script>
+    let testResults = [];
+    
+    function log(message, type = 'info') {
+      const result = { message, type, timestamp: new Date().toLocaleTimeString() };
+      testResults.push(result);
+      updateTestResults();
+    }
+    
+    function updateTestResults() {
+      const container = document.getElementById('test-results');
+      container.innerHTML = testResults.map(result => 
+        `<div class="test-result ${result.type}">
+          [${result.timestamp}] ${result.message}
+        </div>`
+      ).join('');
+      container.scrollTop = container.scrollHeight;
+    }
+    
+    function clearStorage() {
+      localStorage.clear();
+      log('Local storage cleared', 'info');
+    }
+    
+    function loadDashboard() {
+      document.getElementById('dashboard-frame').src = 'index.html?' + Date.now();
+      log('Dashboard reloaded', 'info');
+    }
+    
+    async function runAllTests() {
+      testResults = [];
+      log('Starting integration tests...', 'info');
+      
+      // Clear storage to start fresh
+      clearStorage();
+      
+      try {
+        await testStorageIntegration();
+        await testWidgetInitialization();
+        await testThemeIntegration();
+        await testDataPersistence();
+        await testCompleteWorkflow();
+        
+        log('All integration tests completed!', 'pass');
+      } catch (error) {
+        log(`Integration test failed: ${error.message}`, 'fail');
+      }
+    }
+    
+    async function testStorageIntegration() {
+      log('Testing storage integration...', 'info');
+      
+      // Test storage availability
+      try {
+        localStorage.setItem('test', 'value');
+        const retrieved = localStorage.getItem('test');
+        localStorage.removeItem('test');
+        
+        if (retrieved === 'value') {
+          log('✓ Local storage is available and working', 'pass');
+        } else {
+          throw new Error('Storage test failed');
+        }
+      } catch (error) {
+        log('✗ Local storage is not available', 'fail');
+        throw error;
+      }
+      
+      // Test data structure integrity
+      const testData = {
+        userName: 'Test User',
+        tasks: [
+          { id: 'task_1', text: 'Test task', urgency: 'high', completed: false, createdAt: Date.now() }
+        ],
+        quickLinks: [
+          { id: 'link_1', url: 'https://example.com', createdAt: Date.now() }
+        ],
+        theme: 'dark'
+      };
+      
+      // Save test data
+      localStorage.setItem('dashboard_userName', JSON.stringify(testData.userName));
+      localStorage.setItem('dashboard_tasks', JSON.stringify(testData.tasks));
+      localStorage.setItem('dashboard_quickLinks', JSON.stringify(testData.quickLinks));
+      localStorage.setItem('dashboard_theme', JSON.stringify(testData.theme));
+      
+      // Verify data can be retrieved
+      const retrievedName = JSON.parse(localStorage.getItem('dashboard_userName'));
+      const retrievedTasks = JSON.parse(localStorage.getItem('dashboard_tasks'));
+      const retrievedLinks = JSON.parse(localStorage.getItem('dashboard_quickLinks'));
+      const retrievedTheme = JSON.parse(localStorage.getItem('dashboard_theme'));
+      
+      if (retrievedName === testData.userName &&
+          retrievedTasks.length === 1 &&
+          retrievedLinks.length === 1 &&
+          retrievedTheme === testData.theme) {
+        log('✓ Data persistence structure is working correctly', 'pass');
+      } else {
+        log('✗ Data persistence structure failed', 'fail');
+      }
+    }
+    
+    async function testWidgetInitialization() {
+      log('Testing widget initialization...', 'info');
+      
+      // Load dashboard and wait for initialization
+      loadDashboard();
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      try {
+        const frame = document.getElementById('dashboard-frame');
+        const frameDoc = frame.contentDocument || frame.contentWindow.document;
+        
+        // Check if all widgets are present
+        const widgets = [
+          'greeting-widget',
+          'timer-widget', 
+          'task-widget',
+          'links-widget'
+        ];
+        
+        let allWidgetsFound = true;
+        for (const widgetClass of widgets) {
+          const widget = frameDoc.querySelector(`.${widgetClass}`);
+          if (!widget) {
+            log(`✗ Widget ${widgetClass} not found`, 'fail');
+            allWidgetsFound = false;
+          }
+        }
+        
+        if (allWidgetsFound) {
+          log('✓ All widgets are present in the DOM', 'pass');
+        }
+        
+        // Check if time display is working
+        const timeDisplay = frameDoc.getElementById('time-display');
+        if (timeDisplay && timeDisplay.textContent.match(/\d{2}:\d{2}/)) {
+          log('✓ Time display is working', 'pass');
+        } else {
+          log('✗ Time display is not working', 'fail');
+        }
+        
+        // Check if timer display is initialized
+        const timerDisplay = frameDoc.getElementById('timer-display');
+        if (timerDisplay && timerDisplay.textContent === '25:00') {
+          log('✓ Timer is initialized correctly', 'pass');
+        } else {
+          log('✗ Timer initialization failed', 'fail');
+        }
+        
+      } catch (error) {
+        log(`Widget initialization test failed: ${error.message}`, 'fail');
+      }
+    }
+    
+    async function testThemeIntegration() {
+      log('Testing theme integration...', 'info');
+      
+      try {
+        const frame = document.getElementById('dashboard-frame');
+        const frameDoc = frame.contentDocument || frame.contentWindow.document;
+        
+        // Test theme loading from storage
+        const htmlElement = frameDoc.documentElement;
+        const currentTheme = htmlElement.getAttribute('data-theme');
+        
+        if (currentTheme === 'dark') {
+          log('✓ Theme loaded correctly from storage (dark)', 'pass');
+        } else {
+          log(`Theme loaded as: ${currentTheme || 'light'}`, 'info');
+        }
+        
+        // Test theme toggle functionality
+        const themeToggle = frameDoc.getElementById('theme-toggle-btn');
+        if (themeToggle) {
+          log('✓ Theme toggle button is present', 'pass');
+          
+          // Simulate theme toggle
+          themeToggle.click();
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+          const newTheme = htmlElement.getAttribute('data-theme');
+          if (newTheme !== currentTheme) {
+            log('✓ Theme toggle is working', 'pass');
+          } else {
+            log('✗ Theme toggle is not working', 'fail');
+          }
+        } else {
+          log('✗ Theme toggle button not found', 'fail');
+        }
+        
+      } catch (error) {
+        log(`Theme integration test failed: ${error.message}`, 'fail');
+      }
+    }
+    
+    async function testDataPersistence() {
+      log('Testing data persistence...', 'info');
+      
+      try {
+        const frame = document.getElementById('dashboard-frame');
+        const frameDoc = frame.contentDocument || frame.contentWindow.document;
+        
+        // Test name persistence
+        const nameInput = frameDoc.getElementById('name-input');
+        if (nameInput) {
+          nameInput.value = 'Integration Test User';
+          nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+          
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          const savedName = localStorage.getItem('dashboard_userName');
+          if (savedName && JSON.parse(savedName) === 'Integration Test User') {
+            log('✓ Name persistence is working', 'pass');
+          } else {
+            log('✗ Name persistence failed', 'fail');
+          }
+        }
+        
+        // Test task persistence
+        const taskInput = frameDoc.getElementById('task-input');
+        const taskUrgency = frameDoc.getElementById('task-urgency');
+        const taskAddBtn = frameDoc.getElementById('task-add-btn');
+        
+        if (taskInput && taskUrgency && taskAddBtn) {
+          taskInput.value = 'Integration test task';
+          taskUrgency.value = 'high';
+          taskAddBtn.click();
+          
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          const savedTasks = localStorage.getItem('dashboard_tasks');
+          if (savedTasks) {
+            const tasks = JSON.parse(savedTasks);
+            const testTask = tasks.find(t => t.text === 'Integration test task');
+            if (testTask && testTask.urgency === 'high') {
+              log('✓ Task persistence is working', 'pass');
+            } else {
+              log('✗ Task persistence failed', 'fail');
+            }
+          } else {
+            log('✗ No tasks saved to storage', 'fail');
+          }
+        }
+        
+        // Test quick link persistence
+        const linkInput = frameDoc.getElementById('link-input');
+        const linkAddBtn = frameDoc.getElementById('link-add-btn');
+        
+        if (linkInput && linkAddBtn) {
+          linkInput.value = 'github.com';
+          linkAddBtn.click();
+          
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          const savedLinks = localStorage.getItem('dashboard_quickLinks');
+          if (savedLinks) {
+            const links = JSON.parse(savedLinks);
+            const testLink = links.find(l => l.url === 'https://github.com');
+            if (testLink) {
+              log('✓ Quick link persistence is working', 'pass');
+            } else {
+              log('✗ Quick link persistence failed', 'fail');
+            }
+          } else {
+            log('✗ No links saved to storage', 'fail');
+          }
+        }
+        
+      } catch (error) {
+        log(`Data persistence test failed: ${error.message}`, 'fail');
+      }
+    }
+    
+    async function testCompleteWorkflow() {
+      log('Testing complete user workflow...', 'info');
+      
+      try {
+        // Clear storage and reload for fresh test
+        clearStorage();
+        loadDashboard();
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const frame = document.getElementById('dashboard-frame');
+        const frameDoc = frame.contentDocument || frame.contentWindow.document;
+        
+        // Step 1: Set user name
+        const nameInput = frameDoc.getElementById('name-input');
+        nameInput.value = 'Workflow Test User';
+        nameInput.dispatchEvent(new Event('input', { bubbles: true }));
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Step 2: Add multiple tasks with different urgencies
+        const taskInput = frameDoc.getElementById('task-input');
+        const taskUrgency = frameDoc.getElementById('task-urgency');
+        const taskAddBtn = frameDoc.getElementById('task-add-btn');
+        
+        const testTasks = [
+          { text: 'High priority task', urgency: 'high' },
+          { text: 'Medium priority task', urgency: 'medium' },
+          { text: 'Low priority task', urgency: 'low' }
+        ];
+        
+        for (const task of testTasks) {
+          taskInput.value = task.text;
+          taskUrgency.value = task.urgency;
+          taskAddBtn.click();
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        // Step 3: Test task sorting
+        const sortUrgencyBtn = frameDoc.getElementById('sort-urgency');
+        if (sortUrgencyBtn) {
+          sortUrgencyBtn.click();
+          await new Promise(resolve => setTimeout(resolve, 100));
+          log('✓ Task sorting executed', 'pass');
+        }
+        
+        // Step 4: Add quick links
+        const linkInput = frameDoc.getElementById('link-input');
+        const linkAddBtn = frameDoc.getElementById('link-add-btn');
+        
+        const testLinks = ['github.com', 'stackoverflow.com'];
+        for (const link of testLinks) {
+          linkInput.value = link;
+          linkAddBtn.click();
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
+        // Step 5: Toggle theme
+        const themeToggle = frameDoc.getElementById('theme-toggle-btn');
+        if (themeToggle) {
+          themeToggle.click();
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+        
+        // Step 6: Verify all data persisted
+        const finalName = localStorage.getItem('dashboard_userName');
+        const finalTasks = localStorage.getItem('dashboard_tasks');
+        const finalLinks = localStorage.getItem('dashboard_quickLinks');
+        const finalTheme = localStorage.getItem('dashboard_theme');
+        
+        let workflowPassed = true;
+        
+        if (!finalName || JSON.parse(finalName) !== 'Workflow Test User') {
+          log('✗ User name not persisted in workflow', 'fail');
+          workflowPassed = false;
+        }
+        
+        if (!finalTasks || JSON.parse(finalTasks).length !== 3) {
+          log('✗ Tasks not persisted correctly in workflow', 'fail');
+          workflowPassed = false;
+        }
+        
+        if (!finalLinks || JSON.parse(finalLinks).length !== 2) {
+          log('✗ Quick links not persisted correctly in workflow', 'fail');
+          workflowPassed = false;
+        }
+        
+        if (!finalTheme) {
+          log('✗ Theme not persisted in workflow', 'fail');
+          workflowPassed = false;
+        }
+        
+        if (workflowPassed) {
+          log('✓ Complete user workflow test passed!', 'pass');
+        }
+        
+        // Step 7: Test data reload after refresh
+        loadDashboard();
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const newFrame = document.getElementById('dashboard-frame');
+        const newFrameDoc = newFrame.contentDocument || newFrame.contentWindow.document;
+        
+        // Check if data loaded correctly
+        const reloadedNameInput = newFrameDoc.getElementById('name-input');
+        const reloadedTaskList = newFrameDoc.getElementById('task-list');
+        const reloadedLinksList = newFrameDoc.getElementById('links-list');
+        
+        if (reloadedNameInput && reloadedNameInput.value === 'Workflow Test User') {
+          log('✓ User name loaded correctly after refresh', 'pass');
+        } else {
+          log('✗ User name not loaded after refresh', 'fail');
+        }
+        
+        if (reloadedTaskList && reloadedTaskList.children.length === 3) {
+          log('✓ Tasks loaded correctly after refresh', 'pass');
+        } else {
+          log('✗ Tasks not loaded correctly after refresh', 'fail');
+        }
+        
+        if (reloadedLinksList && reloadedLinksList.children.length === 2) {
+          log('✓ Quick links loaded correctly after refresh', 'pass');
+        } else {
+          log('✗ Quick links not loaded correctly after refresh', 'fail');
+        }
+        
+      } catch (error) {
+        log(`Complete workflow test failed: ${error.message}`, 'fail');
+      }
+    }
+    
+    // Auto-load dashboard on page load
+    window.addEventListener('load', () => {
+      loadDashboard();
+    });
+  </script>
+</body>
+</html>

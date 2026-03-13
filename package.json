@@ -1,0 +1,17 @@
+{
+  "name": "productivity-dashboard",
+  "version": "1.0.0",
+  "description": "A client-side productivity dashboard with focus timer, tasks, and quick links",
+  "main": "index.html",
+  "scripts": {
+    "test": "vitest --run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest --coverage"
+  },
+  "devDependencies": {
+    "vitest": "^1.0.0",
+    "jsdom": "^23.0.0",
+    "fast-check": "^3.15.0"
+  },
+  "type": "module"
+}
